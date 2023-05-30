@@ -110,13 +110,15 @@ static int handle_notify(sd_bus_message *msg, void *data,
 		notif = get_notification(state, replaces_id);
 	}
 
-	if (notif) {
+	if (notif && replaces_id > 0) {
 		reset_notification(notif);
 	} else {
 		// Either we had no replaces_id, or the id given was invalid. Either
 		// way, make a new notification.
-		replaces_id = 0; // In case they got lucky and passed the next id.
+		// replaces_id = 0; // In case they got lucky and passed the next id.
+        state->replace_id = replaces_id;
 		notif = create_notification(state);
+        replaces_id = 0;
 	}
 
 	if (notif == NULL) {

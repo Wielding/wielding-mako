@@ -1,5 +1,9 @@
 # mako
 
+
+This fork adds the ability to create a new notification using the replace id instead of generating an new id for each notification.
+---
+
 A lightweight notification daemon for Wayland. Works on Sway.
 
 <p align="center">
