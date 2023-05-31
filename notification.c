@@ -82,6 +82,10 @@ struct mako_notification *create_notification(struct mako_state *state) {
   if (state->replace_id > 0) {
     notif->id = state->replace_id;
     state->replace_id = 0;
+    // to prevent id collision lets just set the last_id to the replace_id if its bigger
+    if (state->last_id < notif->id) {
+      state->last_id = notif->id;
+    }
   }
 
   wl_list_init(&notif->actions);
