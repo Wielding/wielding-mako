@@ -31,48 +31,81 @@ Empty lines and lines that begin with # are ignored.
 
 # BINDING OPTIONS
 
-Bindings allow one to perform an action when an event is triggered. Supported
-values are _none_, _dismiss_, _dismiss-all_, _dismiss-group_,
-_invoke-action <action>_, _invoke-default-action_ and _exec <command>_.
+Bindings allow one to perform an action when an event is triggered.
+
+Supported options:
 
 *on-button-left*=_action_
+	Performs the action when the left pointer button is pressed.
+
 	Default: invoke-default-action
 
 *on-button-middle*=_action_
+	Performs the action when the middle pointer button is pressed.
+
 	Default: none
 
 *on-button-right*=_action_
+	Performs the action when the right pointer button is pressed.
+
 	Default: dismiss
 
 *on-touch*=_action_
+	Performs the action when tapped via a touch device.
+
 	Default: dismiss
 
-*on-notify* = _action_
+*on-notify*=_action_
+	Performs the action when the notification is opened.
+
 	Default: none
 
-When _exec_ is used, the command will be executed in a POSIX shell. The
-shell variable _id_ will be set to the notification ID. For example, the
-following option will display an interactive action menu on middle click:
+Supported actions:
 
-```
-on-button-middle=exec makoctl menu -n "$id" dmenu -p 'Select action: '
-```
+*none*
+	Do nothing.
 
-The following option will play a sound when a new notification is opened:
+*dismiss*
+	Dismiss the current notification.
 
-```
-on-notify=exec mpv /usr/share/sounds/freedesktop/stereo/message.oga
-```
+*dismiss-all*
+	Dismiss all notifications.
 
-When using _invoke-action_ or _invoke-default-action_ a xdg-activation
-token will be sent to the client, allowing the client to request focus
-from the compositor. The compositor must support the xdg_activation_v1
-protocol and allow the focus request for the example to work correctly:
+*dismiss-group*
+	Dismiss notifications in the current group.
 
-```
-[app-name="some-app-id" actionable]
-on-button-left=invoke-action mail-reply-sender
-```
+*invoke-action* <action>
+	Invoke the named action on the notification.
+
+	An xdg-activation token will be sent to the client, allowing the client to
+	request focus from the compositor. The compositor must support the
+	xdg_activation_v1 protocol and allow the focus request for the following
+	example to work correctly:
+
+	```
+	[app-name="some-app-id" actionable]
+	on-button-left=invoke-action mail-reply-sender
+	```
+
+*invoke-default-action*
+	Invoke the default action on the notification.
+
+*exec* <command>
+	Execute a shell command.
+
+	The command will be executed in a POSIX shell. The shell variable _id_ will
+	be set to the notification ID. For example, the following option will
+	display an interactive action menu on middle click:
+
+	```
+	on-button-middle=exec makoctl menu -n "$id" dmenu -p 'Select action: '
+	```
+
+	The following option will play a sound when a new notification is opened:
+
+	```
+	on-notify=exec mpv /usr/share/sounds/freedesktop/stereo/message.oga
+	```
 
 # STYLE OPTIONS
 
@@ -286,47 +319,35 @@ The following fields are available in criteria:
 
 - _app-name_ (string)
 - _app-icon_ (string)
-- _summary_ (string)
-	- An exact match on the summary of the notification.
-	- This field conflicts with _summary~_.
-- _summary~_ (string)
-	- A POSIX extended regular expression match on the summary of the
-	  notification.
-	- This field conflicts with _summary_.
-- _body_ (string)
-	- An exact match on the body of the notification.
-	- This field conflicts with _body~_.
-- _body~_ (string)
-	- A POSIX extended regular expression match on the body of the
-	notification.
-	- This field conflicts with _body_.
+- _summary_ (string): exact match on the summary of the notification. This
+  field conflicts with _summary~_.
+- _summary~_ (string): a POSIX extended regular expression match on the summary
+  of the notification. This field conflicts with _summary_.
+- _body_ (string): an exact match on the body of the notification. This field
+  conflicts with _body~_.
+- _body~_ (string): a POSIX extended regular expression match on the body of
+  the notification. This field conflicts with _body_.
 - _urgency_ (one of "low", "normal", "critical")
 - _category_ (string)
 - _desktop-entry_ (string)
 - _actionable_ (boolean)
 - _expiring_ (boolean)
-- _mode_ (string)
-	- Only apply style options in this section if the provided mode is
-	  currently enabled. For more information about modes, see the _MODES_
-	  section.
+- _mode_ (string): only apply style options in this section if the provided
+  mode is currently enabled. For more information about modes, see the _MODES_
+  section.
 
 The following fields are also available to match on a second pass based on
 where previous style options decided to place each notification:
 
-- _grouped_ (boolean)
-	- Whether the notification is grouped with any others (its group-index is
-	  not -1).
-- _group-index_ (int)
-	- The notification's index within its group, or -1 if it is not grouped.
-- _hidden_ (boolean)
-	- _hidden_ is special, it defines the style for the placeholder shown when
-	  the number of notifications or groups exceeds _max-visible_.
-- _output_ (string)
-    - Which output the notification was sorted onto. See the output style
-	  option for possible values.
-- _anchor_ (string)
-	- Which position on the output the notification was assigned to. See the
-      anchor style option for possible values.
+- _grouped_ (boolean): whether the notification is grouped with any others.
+- _group-index_ (int): the notification's index within its group, or -1 if it
+  is not grouped.
+- _hidden_ (boolean): special field which defines the style for the placeholder
+  shown when the number of notifications or groups exceeds _max-visible_.
+- _output_ (string): which output the notification was sorted onto. See the
+  _output_ style option for possible values.
+- _anchor_ (string): which position on the output the notification was assigned
+  to. See the _anchor_ style option for possible values.
 
 There are only two passes performed on each notification, so the second-pass
 criteria are not allowed to reposition the notification.
@@ -360,12 +381,10 @@ These options can be overridden by simply defining the criteria yourself and
 overriding them.
 
 There are some rules restricting what can be configured depending on what is
-being matched by a given criteria:
-
-- Criteria matching _grouped_ or _group-index_ are not allowed to change the
-  _anchor_, _output_, or _group-by_, as this would invalidate the grouping.
-  Grouping is only performed once rather than recursively, to avoid the
-  potential for infinite loops.
+being matched by a given criteria. Criteria matching _grouped_ or _group-index_
+are not allowed to change the _anchor_, _output_, or _group-by_, as this would
+invalidate the grouping. Grouping is only performed once rather than
+recursively, to avoid the potential for infinite loops.
 
 # CRITERIA-ONLY STYLE OPTIONS
 
