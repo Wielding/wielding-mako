@@ -27,7 +27,7 @@ explicitly start this one. Some ways of achieving this is:
 - If you're using Sway you can start mako on launch by putting `exec mako` in
   your configuration file.
 
-- If you are using elogind, you might need to manually start a dbus user
+- If you are not using systemd, you might need to manually start a dbus user
   session: `dbus-daemon --session --address=unix:path=$XDG_RUNTIME_DIR/bus`
 
 ## Configuration
@@ -71,5 +71,5 @@ See the [faq section in the wiki](https://github.com/emersion/mako/wiki/Frequent
 
 MIT
 
-[spec]: https://specifications.freedesktop.org/notification-spec/notification-spec-latest.html
+[spec]: https://specifications.freedesktop.org/notification-spec/latest/
 [basu]: https://github.com/emersion/basu

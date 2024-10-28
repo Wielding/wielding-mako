@@ -1,5 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -88,7 +86,7 @@ static void handle_notification_timer(void *data) {
 	struct mako_surface *surface = notif->surface;
 	notif->timer = NULL;
 
-	close_notification(notif, MAKO_NOTIFICATION_CLOSE_EXPIRED);
+	close_notification(notif, MAKO_NOTIFICATION_CLOSE_EXPIRED, true);
 	set_dirty(surface);
 }
 
@@ -452,7 +450,7 @@ static int handle_close_notification(sd_bus_message *msg, void *data,
 	struct mako_notification *notif = get_notification(state, id);
 	if (notif) {
 		struct mako_surface *surface = notif->surface;
-		close_notification(notif, MAKO_NOTIFICATION_CLOSE_REQUEST);
+		close_notification(notif, MAKO_NOTIFICATION_CLOSE_REQUEST, true);
 		set_dirty(surface);
 	}
 

@@ -1,8 +1,6 @@
-#define _POSIX_C_SOURCE 200809L
 #include <string.h>
 #include <stdlib.h>
 
-#include "config.h"
 #include "mako.h"
 #include "surface.h"
 
@@ -12,6 +10,9 @@ void destroy_surface(struct mako_surface *surface) {
 	}
 	if (surface->surface != NULL) {
 		wl_surface_destroy(surface->surface);
+	}
+	if (surface->frame_callback != NULL) {
+		wl_callback_destroy(surface->frame_callback);
 	}
 	finish_buffer(&surface->buffers[0]);
 	finish_buffer(&surface->buffers[1]);

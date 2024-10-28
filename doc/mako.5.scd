@@ -29,6 +29,12 @@ Empty lines and lines that begin with # are ignored.
 
 	Default: -time
 
+*include*=_config path_
+	Includes a config at the specified path. The path must be absolute
+	or otherwise start with ~/.
+
+	Default: none
+
 # BINDING OPTIONS
 
 Bindings allow one to perform an action when an event is triggered.
@@ -65,8 +71,9 @@ Supported actions:
 *none*
 	Do nothing.
 
-*dismiss*
-	Dismiss the current notification.
+*dismiss [--no-history]*
+	Dismiss the current notification. If *--no-history* is passed, the notification
+	won't be added to history.
 
 *dismiss-all*
 	Dismiss all notifications.
@@ -110,7 +117,9 @@ Supported actions:
 # STYLE OPTIONS
 
 *font*=_font_
-	Set font to _font_, in Pango format.
+	Set font to _font_, as a Pango font description. For more information on
+	Pango font descriptions, see:
+	https://docs.gtk.org/Pango/type_func.FontDescription.from_string.html#description
 
 	Default: monospace 10
 

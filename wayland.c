@@ -1,4 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
 #include <assert.h>
 #include <errno.h>
 #include <stdlib.h>
@@ -17,32 +16,6 @@ static void noop() {
 }
 
 
-static void xdg_output_handle_name(void *data, struct zxdg_output_v1 *xdg_output,
-		const char *name) {
-	struct mako_output *output = data;
-	output->name = strdup(name);
-}
-
-static const struct zxdg_output_v1_listener xdg_output_listener = {
-	.logical_position = noop,
-	.logical_size = noop,
-	.done = noop,
-	.name = xdg_output_handle_name,
-	.description = noop,
-};
-
-static void get_xdg_output(struct mako_output *output) {
-	if (output->state->xdg_output_manager == NULL ||
-			output->xdg_output != NULL) {
-		return;
-	}
-
-	output->xdg_output = zxdg_output_manager_v1_get_xdg_output(
-		output->state->xdg_output_manager, output->wl_output);
-	zxdg_output_v1_add_listener(output->xdg_output, &xdg_output_listener,
-		output);
-}
-
 static void output_handle_geometry(void *data, struct wl_output *wl_output,
 		int32_t x, int32_t y, int32_t phy_width, int32_t phy_height,
 		int32_t subpixel, const char *make, const char *model,
@@ -57,11 +30,19 @@ static void output_handle_scale(void *data, struct wl_output *wl_output,
 	output->scale = factor;
 }
 
+static void output_handle_name(void *data, struct wl_output *wl_output,
+		const char *name) {
+	struct mako_output *output = data;
+	output->name = strdup(name);
+}
+
 static const struct wl_output_listener output_listener = {
 	.geometry = output_handle_geometry,
 	.mode = noop,
 	.done = noop,
 	.scale = output_handle_scale,
+	.name = output_handle_name,
+	.description = noop,
 };
 
 static void send_frame(struct mako_surface *surface);
@@ -86,7 +67,6 @@ static void create_output(struct mako_state *state,
 
 	wl_output_set_user_data(wl_output, output);
 	wl_output_add_listener(wl_output, &output_listener, output);
-	get_xdg_output(output);
 	if (recreate_surface) {
 		// We had no outputs, force our surfaces to redraw
 		wl_list_for_each(surface, &output->state->surfaces, link) {
@@ -106,9 +86,6 @@ static void destroy_output(struct mako_output *output) {
 		}
 	}
 	wl_list_remove(&output->link);
-	if (output->xdg_output != NULL) {
-		zxdg_output_v1_destroy(output->xdg_output);
-	}
 	wl_output_destroy(output->wl_output);
 	free(output->name);
 	free(output);
@@ -176,7 +153,7 @@ static void touch_handle_up(void *data, struct wl_touch *wl_touch,
 	seat->touch.pts[id].surface = NULL;
 }
 
-static void load_cursor(struct mako_state *state, uint32_t scale) {
+static void load_default_cursor(struct mako_state *state, uint32_t scale) {
 	const char *cursor_name = "left_ptr";
 
 	//don't reload the cursor if what we have already can be used
@@ -237,13 +214,20 @@ static void pointer_handle_enter(void *data, struct wl_pointer *wl_pointer,
 		}
 	}
 
-	// Change the mouse cursor to "left_ptr"
-	load_cursor(state, scale);
+	if (state->cursor_shape_manager != NULL) {
+		struct wp_cursor_shape_device_v1 *device =
+			wp_cursor_shape_manager_v1_get_pointer(state->cursor_shape_manager, wl_pointer);
+		wp_cursor_shape_device_v1_set_shape(device, serial,
+			WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT);
+		wp_cursor_shape_device_v1_destroy(device);
+	} else {
+		load_default_cursor(state, scale);
 
-	if (state->cursor.theme != NULL) {
-		wl_pointer_set_cursor(wl_pointer, serial, state->cursor.surface,
-			state->cursor.image->hotspot_x / state->cursor.scale,
-			state->cursor.image->hotspot_y / state->cursor.scale);
+		if (state->cursor.theme != NULL) {
+			wl_pointer_set_cursor(wl_pointer, serial, state->cursor.surface,
+				state->cursor.image->hotspot_x / state->cursor.scale,
+				state->cursor.image->hotspot_y / state->cursor.scale);
+		}
 	}
 }
 
@@ -447,16 +431,14 @@ static void handle_global(void *data, struct wl_registry *registry,
 		create_seat(state, seat);
 	} else if (strcmp(interface, wl_output_interface.name) == 0) {
 		struct wl_output *output =
-			wl_registry_bind(registry, name, &wl_output_interface, 3);
+			wl_registry_bind(registry, name, &wl_output_interface, 4);
 		create_output(state, output, name);
-	} else if (strcmp(interface, zxdg_output_manager_v1_interface.name) == 0 &&
-			version >= ZXDG_OUTPUT_V1_NAME_SINCE_VERSION) {
-		state->xdg_output_manager = wl_registry_bind(registry, name,
-			&zxdg_output_manager_v1_interface,
-			ZXDG_OUTPUT_V1_NAME_SINCE_VERSION);
 	} else if (strcmp(interface, xdg_activation_v1_interface.name) == 0) {
 		state->xdg_activation = wl_registry_bind(registry, name,
 			&xdg_activation_v1_interface, 1);
+	} else if (strcmp(interface, wp_cursor_shape_manager_v1_interface.name) == 0) {
+		state->cursor_shape_manager = wl_registry_bind(registry, name,
+			&wp_cursor_shape_manager_v1_interface, 1);
 	}
 }
 
@@ -483,7 +465,6 @@ bool init_wayland(struct mako_state *state) {
 	wl_list_init(&state->seats);
 
 	state->display = wl_display_connect(NULL);
-
 	if (state->display == NULL) {
 		fprintf(stderr, "failed to create display\n");
 		return false;
@@ -491,7 +472,11 @@ bool init_wayland(struct mako_state *state) {
 
 	state->registry = wl_display_get_registry(state->display);
 	wl_registry_add_listener(state->registry, &registry_listener, state);
-	wl_display_roundtrip(state->display);
+
+	if (wl_display_roundtrip(state->display) < 0) {
+		fprintf(stderr, "wl_display_roundtrip() failed\n");
+		return false;
+	}
 
 	if (state->compositor == NULL) {
 		fprintf(stderr, "compositor doesn't support wl_compositor\n");
@@ -506,24 +491,10 @@ bool init_wayland(struct mako_state *state) {
 		return false;
 	}
 
-	if (state->xdg_output_manager != NULL) {
-		struct mako_output *output;
-		wl_list_for_each(output, &state->outputs, link) {
-			get_xdg_output(output);
-		}
-		wl_display_roundtrip(state->display);
-	}
-	if (state->xdg_output_manager == NULL) {
-		struct mako_criteria *criteria;
-		wl_list_for_each(criteria, &state->config.criteria, link) {
-			if (criteria->style.spec.output &&
-					strcmp(criteria->style.output, "") != 0) {
-				fprintf(stderr, "warning: configured an output "
-					"but compositor doesn't support "
-					"xdg-output-unstable-v1 version 2\n");
-				break;
-			}
-		}
+	// Second roundtrip to get output metadata
+	if (wl_display_roundtrip(state->display) < 0) {
+		fprintf(stderr, "wl_display_roundtrip() failed\n");
+		return false;
 	}
 
 	// Set up the cursor. It needs a wl_surface with the cursor loaded into it.
@@ -565,8 +536,8 @@ void finish_wayland(struct mako_state *state) {
 	if (state->xdg_activation != NULL) {
 		xdg_activation_v1_destroy(state->xdg_activation);
 	}
-	if (state->xdg_output_manager != NULL) {
-		zxdg_output_manager_v1_destroy(state->xdg_output_manager);
+	if (state->cursor_shape_manager != NULL) {
+		wp_cursor_shape_manager_v1_destroy(state->cursor_shape_manager);
 	}
 
 	if (state->cursor.theme != NULL) {
@@ -638,7 +609,8 @@ static void send_frame(struct mako_surface *surface) {
 	}
 
 	struct mako_output *output = get_configured_output(surface);
-	int height = render(surface, surface->current_buffer, scale);
+	int width = 0, height = 0;
+	render(surface, surface->current_buffer, scale, &width, &height);
 
 	// There are two cases where we want to tear down the surface: zero
 	// notifications (height = 0) or moving between outputs.
@@ -698,14 +670,11 @@ static void send_frame(struct mako_surface *surface) {
 	// surface is brand new, it doesn't even have a size yet. If it already
 	// exists, we might need to resize if the list of notifications has changed
 	// since the last time we drew.
-	if (surface->height != height) {
+	if (surface->height != height || surface->width != width) {
 		struct mako_style *style = &state->config.superstyle;
 
-		zwlr_layer_surface_v1_set_size(surface->layer_surface,
-				style->width + style->margin.left + style->margin.right,
-				height);
-		zwlr_layer_surface_v1_set_anchor(surface->layer_surface,
-				surface->anchor);
+		zwlr_layer_surface_v1_set_size(surface->layer_surface, width, height);
+		zwlr_layer_surface_v1_set_anchor(surface->layer_surface, surface->anchor);
 		zwlr_layer_surface_v1_set_margin(surface->layer_surface,
 			style->outer_margin.top, style->outer_margin.right,
 			style->outer_margin.bottom, style->outer_margin.left);
@@ -748,8 +717,10 @@ static void frame_handle_done(void *data, struct wl_callback *callback,
 		uint32_t time) {
 	struct mako_surface *surface = data;
 
-	wl_callback_destroy(surface->frame_callback);
-	surface->frame_callback = NULL;
+	if (surface->frame_callback) {
+		wl_callback_destroy(surface->frame_callback);
+		surface->frame_callback = NULL;
+	}
 
 	// Only draw again if we need to
 	if (surface->dirty) {

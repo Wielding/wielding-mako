@@ -1,6 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
-#include <assert.h>
-#include <errno.h>
 #include <getopt.h>
 #include <libgen.h>
 #include <stdlib.h>
@@ -11,6 +8,7 @@
 
 #include "config.h"
 #include "criteria.h"
+#include "string-util.h"
 #include "types.h"
 
 static int32_t max(int32_t a, int32_t b) {
@@ -488,6 +486,25 @@ bool apply_superset_style(
 	return true;
 }
 
+static char *expand_config_path(const char *path) {
+	if (strncmp(path, "/", 1) == 0) {
+		return strdup(path);
+	}
+
+	if (strncmp(path, "~/", 2) != 0) {
+		fprintf(stderr, "Config path must start with / or ~/\n");
+		return NULL;
+	}
+
+	const char *home = getenv("HOME");
+	if (home == NULL) {
+		fprintf(stderr, "HOME env var not set\n");
+		return NULL;
+	}
+
+	return mako_asprintf("%s/%s", home, path + 2);
+}
+
 static bool apply_config_option(struct mako_config *config, const char *name,
 		const char *value) {
 	if (strcmp(name, "sort") == 0) {
@@ -509,6 +526,9 @@ static bool apply_config_option(struct mako_config *config, const char *name,
 		return true;
 	} else if (strcmp(name, "max-history") == 0) {
 		return parse_int(value, &config->max_history);
+	} else if (strcmp(name, "include") == 0) {
+		char *path = expand_config_path(value);
+		return path && load_config_file(config, path) == 0;
 	}
 
 	return false;
@@ -646,6 +666,8 @@ static bool apply_style_option(struct mako_style *style, const char *name,
 			binding.action = MAKO_BINDING_NONE;
 		} else if (strcmp(value, "dismiss") == 0) {
 			binding.action = MAKO_BINDING_DISMISS;
+		} else if (strcmp(value, "dismiss --no-history") == 0) {
+			binding.action = MAKO_BINDING_DISMISS_NO_HISTORY;
 		} else if (strcmp(value, "dismiss-all") == 0) {
 			binding.action = MAKO_BINDING_DISMISS_ALL;
 		} else if (strcmp(value, "dismiss-group") == 0) {
@@ -699,49 +721,44 @@ static bool file_exists(const char *path) {
 	return path && access(path, R_OK) != -1;
 }
 
-static char *get_config_path(void) {
-	static const char *config_paths[] = {
-		"$HOME/.mako/config",
-		"$XDG_CONFIG_HOME/mako/config",
+static char *get_default_config_path() {
+	const char *home = getenv("HOME");
+	if (home == NULL) {
+		fprintf(stderr, "HOME env var not set\n");
+		return NULL;
+	}
+
+	const char *config_home = getenv("XDG_CONFIG_HOME");
+	char *config_home_fallback = NULL;
+	if (config_home == NULL || config_home[0] == '\0') {
+		config_home_fallback = mako_asprintf("%s/.config", home);
+		config_home = config_home_fallback;
+	}
+
+	char *config_paths[] = {
+		mako_asprintf("%s/.mako/config", home),
+		mako_asprintf("%s/mako/config", config_home),
 	};
 
-	if (!getenv("XDG_CONFIG_HOME")) {
-		char *home = getenv("HOME");
-		if (!home) {
-			return NULL;
-		}
-		char config_home[strlen(home) + strlen("/.config") + 1];
-		strcpy(config_home, home);
-		strcat(config_home, "/.config");
-		setenv("XDG_CONFIG_HOME", config_home, 1);
-	}
-
-	for (size_t i = 0; i < sizeof(config_paths) / sizeof(char *); ++i) {
-		wordexp_t p;
-		if (wordexp(config_paths[i], &p, 0) == 0) {
-			char *path = strdup(p.we_wordv[0]);
-			wordfree(&p);
-			if (file_exists(path)) {
-				return path;
-			}
-			free(path);
+	size_t config_paths_len = sizeof(config_paths) / sizeof(config_paths[0]);
+	char *found_path = NULL;
+	for (size_t i = 0; i < config_paths_len; ++i) {
+		char *path = config_paths[i];
+		if (file_exists(path)) {
+			found_path = strdup(path);
+			break;
 		}
 	}
 
-	return NULL;
+	for (size_t i = 0; i < config_paths_len; ++i) {
+		free(config_paths[i]);
+	}
+	free(config_home_fallback);
+
+	return found_path;
 }
 
-int load_config_file(struct mako_config *config, char *config_arg) {
-	char *path = NULL;
-	if (config_arg == NULL) {
-		path = get_config_path();
-		if (!path) {
-			return 0;
-		}
-	} else {
-		path = config_arg;
-	}
-
+int load_config_file(struct mako_config *config, char *path) {
 	FILE *f = fopen(path, "r");
 	if (!f) {
 		fprintf(stderr, "Unable to open %s for reading\n", path);
@@ -808,7 +825,6 @@ int load_config_file(struct mako_config *config, char *config_arg) {
 		if (!valid_option && section == NULL) {
 			valid_option = apply_config_option(config, line, eq + 1);
 		}
-
 
 		if (!valid_option) {
 			fprintf(stderr, "[%s:%d] Failed to parse option '%s'\n",
@@ -898,9 +914,12 @@ int parse_config_arguments(struct mako_config *config, int argc, char **argv) {
 		return opt_status;
 	}
 
-	int config_status = load_config_file(config, config_arg);
-	if (config_status < 0) {
-		return -1;
+	char *config_path = config_arg ? config_arg : get_default_config_path();
+	if (config_path) {
+		int config_status = load_config_file(config, config_path);
+		if (config_status < 0) {
+			return -1;
+		}
 	}
 
 	optind = 1;

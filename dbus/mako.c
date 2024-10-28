@@ -1,5 +1,3 @@
-#define _POSIX_C_SOURCE 200809L
-#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -59,7 +57,7 @@ static int handle_dismiss_last_notification(sd_bus_message *msg, void *data,
 
 	struct mako_notification *notif =
 		wl_container_of(state->notifications.next, notif, link);
-	close_notification(notif, MAKO_NOTIFICATION_CLOSE_DISMISSED);
+	close_notification(notif, MAKO_NOTIFICATION_CLOSE_DISMISSED, true);
 	set_dirty(notif->surface);
 
 done:
@@ -83,7 +81,7 @@ static int handle_dismiss_notification(sd_bus_message *msg, void *data,
 			if (dismiss_group) {
 				close_group_notifications(notif, MAKO_NOTIFICATION_CLOSE_DISMISSED);
 			} else {
-				close_notification(notif, MAKO_NOTIFICATION_CLOSE_DISMISSED);
+				close_notification(notif, MAKO_NOTIFICATION_CLOSE_DISMISSED, true);
 			}
 			set_dirty(notif->surface);
 			break;
