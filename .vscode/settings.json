@@ -1,3 +1,4 @@
 {
-    "C_Cpp.default.compileCommands": "build/compile_commands.json"
+    "C_Cpp.default.compileCommands": "/home/rayke/source/repos/wielding-mako/build/compile_commands.json",
+    "C_Cpp.default.configurationProvider": "mesonbuild.mesonbuild"
 }

@@ -78,7 +78,7 @@ struct mako_notification *create_notification(struct mako_state *state) {
   ++state->last_id;
   notif->id = state->last_id;
 
-// if we have a replace_id, use it instead of the last_id and reset it to 0 
+// if we have a replace_id, use it instead of the last_id and reset it to 0
   if (state->replace_id > 0) {
     notif->id = state->replace_id;
     state->replace_id = 0;
