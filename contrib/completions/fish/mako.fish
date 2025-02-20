@@ -17,11 +17,12 @@ complete -c mako -l margin -d 'Margin values in px, comma separated' -x
 complete -c mako -l padding -d 'Padding values in px, comma separated' -x
 complete -c mako -l border-size -d 'Border size in px' -x
 complete -c mako -l border-color -d 'Border color in #RRGGBB[AA]' -x
-complete -c mako -l border-radius -d 'Border radius in px' -x
+complete -c mako -l border-radius -d 'Border radius values in px,comma separated' -x
 complete -c mako -l progress-color -d 'Progress color indicator' -x
 complete -c mako -l icons -d 'Show icons or not' -xa "1 0"
 complete -c mako -l icon-path -d 'Icon search path, colon delimited' -r
 complete -c mako -l max-icon-size -d 'Max icon size in px' -x
+complete -c mako -l icon-border-radius -d 'Icon border radius value in px' -x
 complete -c mako -l markup -d 'Enable markup or not' -xa "1 0"
 complete -c mako -l actions -d 'Enable actions or not' -xa "1 0"
 complete -c mako -l format -d 'Format string' -x

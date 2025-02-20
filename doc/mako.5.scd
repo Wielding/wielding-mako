@@ -176,8 +176,9 @@ Supported actions:
 
 	Default: #4C7899FF
 
-*border-radius*=_px_
-	Set popup corner radius to _px_ pixels.
+*border-radius*=_directional_
+	Set popup corner radius on each side to the size specified by _directional_. See
+	*DIRECTIONAL VALUES* for more information.
 
 	Default: 0
 
@@ -222,6 +223,11 @@ Supported actions:
 	_left_, _right_, _top_ and _bottom_.
 
 	Default: left
+
+*icon-border-radius*=_px_
+	Sets icon corner radius to _px_ pixels.
+
+	Default: 0
 
 *markup*=0|1
 	If 1, enable Pango markup. If 0, disable Pango markup. If enabled, Pango
