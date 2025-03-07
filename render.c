@@ -36,7 +36,7 @@ static void move_to(cairo_t *cairo, double x, double y, int scale) {
 }
 
 static void set_rounded_rectangle(cairo_t *cairo, double x, double y, double width, double height,
-		int scale, int radius) {
+		int scale, int radius_top_left, int radius_top_right, int radius_bottom_right, int radius_bottom_left) {
 	if (width == 0 || height == 0) {
 		return;
 	}
@@ -44,14 +44,19 @@ static void set_rounded_rectangle(cairo_t *cairo, double x, double y, double wid
 	y *= scale;
 	width *= scale;
 	height *= scale;
-	radius *= scale;
+	radius_top_left *= scale;
+	radius_top_right *= scale;
+	radius_bottom_right *= scale;
+	radius_bottom_left *= scale;
 	double degrees = M_PI / 180.0;
 
 	cairo_new_sub_path(cairo);
-	cairo_arc(cairo, x + width - radius, y + radius, radius, -90 * degrees, 0 * degrees);
-	cairo_arc(cairo, x + width - radius, y + height - radius, radius, 0 * degrees, 90 * degrees);
-	cairo_arc(cairo, x + radius, y + height - radius, radius, 90 * degrees, 180 * degrees);
-	cairo_arc(cairo, x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
+
+	cairo_arc(cairo, x + radius_top_left, y + radius_top_left, radius_top_left, 180 * degrees, 270 * degrees);
+	cairo_arc(cairo, x + width - radius_top_right, y + radius_top_right, radius_top_right, -90 * degrees, 0 * degrees);
+	cairo_arc(cairo, x + width - radius_bottom_right, y + height - radius_bottom_right, radius_bottom_right, 0 * degrees, 90 * degrees);
+	cairo_arc(cairo, x + radius_bottom_left, y + height - radius_bottom_left, radius_bottom_left, 90 * degrees, 180 * degrees);
+
 	cairo_close_path(cairo);
 }
 
@@ -96,7 +101,11 @@ static int render_notification(cairo_t *cairo, struct mako_state *state, struct 
 	int border_size = 2 * style->border_size;
 	int padding_height = style->padding.top + style->padding.bottom;
 	int padding_width = style->padding.left + style->padding.right;
-	int radius = style->border_radius;
+	int radius_top_left = style->border_radius.top;
+	int radius_top_right = style->border_radius.right;
+	int radius_bottom_right = style->border_radius.bottom;
+	int radius_bottom_left = style->border_radius.left;
+	int icon_radius = style->icon_border_radius;
 	bool icon_vertical = style->icon_location == MAKO_ICON_LOCATION_TOP ||
 		style->icon_location == MAKO_ICON_LOCATION_BOTTOM;
 
@@ -195,9 +204,11 @@ static int render_notification(cairo_t *cairo, struct mako_state *state, struct 
 	if (icon != NULL && ! icon_vertical && icon->height > text_height) {
 		notif_height = icon->height + border_size + padding_height;
 	}
-
-	if (notif_height < radius * 2) {
-		notif_height = radius * 2 + border_size;
+	if (notif_height < radius_top_left + radius_bottom_left) {
+		notif_height = radius_top_left + radius_bottom_left + border_size;
+	}
+	if (notif_height < radius_top_right + radius_bottom_right) {
+		notif_height = radius_top_right + radius_bottom_right + border_size;
 	}
 
 	int notif_background_width = notif_width - style->border_size;
@@ -210,7 +221,7 @@ static int render_notification(cairo_t *cairo, struct mako_state *state, struct 
 		offset_y + style->border_size / 2.0,
 		notif_background_width,
 		notif_height - style->border_size,
-		scale, radius);
+		scale, radius_top_left, radius_top_right, radius_bottom_right, radius_bottom_left);
 
 	// Render background, keeping the path.
 	set_source_u32(cairo, style->colors.background);
@@ -241,7 +252,7 @@ static int render_notification(cairo_t *cairo, struct mako_state *state, struct 
 			offset_y + style->border_size,
 			progress_width,
 			notif_height - style->border_size,
-			scale, 0);
+			scale, 0, 0, 0, 0);
 	cairo_fill(cairo);
 	cairo_restore(cairo);
 
@@ -290,7 +301,11 @@ static int render_notification(cairo_t *cairo, struct mako_state *state, struct 
 				style->padding.bottom - icon->height;
 			break;
 		}
+		cairo_save(cairo);
+		set_rounded_rectangle(cairo, xpos, ypos, icon->width, icon->height, scale, icon_radius, icon_radius, icon_radius, icon_radius);
+		cairo_clip(cairo);
 		draw_icon(cairo, icon, xpos, ypos, scale);
+		cairo_restore(cairo);
 	}
 
 	if (icon_vertical) {
