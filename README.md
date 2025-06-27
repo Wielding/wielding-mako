@@ -2,7 +2,7 @@
 
 # This repository is being archived.  I am no longer maintaining or pulling changes from the official mako repository.
 
-### This is mainly due to the fact that swaywm 1.11 seems to have an issue that causes mako and dunst to fail showing notifications after a monitor is powered off/on.  I here it is fixed in newer releases of sway that I can't build and install on my machine without causing compatibility issues with other desktops.  I am not willing to deal with some workarounds that do not work 100% of the time anyway.
+### This is mainly due to the fact that swaywm 1.11 seems to have an issue that causes mako and dunst to fail showing notifications after a monitor is powered off/on.  I have read that it is fixed in newer releases of sway that I can't build and install on my machine without causing compatibility issues with other desktops.  I am not willing to deal with some workarounds that do not work 100% of the time anyway so I am no longer using mako or dunst.
 
 
 This fork adds the ability to create a new notification using the replace id instead of generating an new id for each notification.
